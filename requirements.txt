@@ -1,0 +1,36 @@
+# pip install -r requirements.txt
+# pip install torch==1.11.0+cu113 torchvision==0.12.0+cu113 torchaudio==0.11.0 --extra-index-url https://download.pytorch.org/whl/cu113
+
+zope.interface
+
+numpy
+# scipy
+# pandas
+
+opencv-python>=4.1.2
+kafka-python
+
+# ffmpeg
+ffmpeg-python
+
+omegaconf>=2.1.2
+# tqdm>=4.41.0
+# Shapely
+# pyyaml
+# gdown
+
+parse date-time string
+python-dateutil
+
+# # geodesic transformation
+# pyproj
+
+# # Redis
+# redis
+
+# # yolov5
+# ipython
+# ultralytics
+
+# # protobuf
+# protobuf
