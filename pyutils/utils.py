@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-
-from typing import Optional#, Any, Iterable, Iterator, Union, TypeVar
-# from collections.abc import Callable
+from typing import Optional, Iterable, Iterator, Generator, Callable, TypeVar, Union#, Any, Iterable, Union, TypeVar
+from collections.abc import Sequence
 import logging
 
 # import time
@@ -10,8 +9,9 @@ from datetime import datetime, timezone
 # from pathlib import Path
 
 # from .color import BGR
+from .types import Timestamped, TimestampedT
 
-# T = TypeVar("T")
+T = TypeVar("T")
 
 
 def datetime2utc(dt: datetime) -> int:
@@ -19,8 +19,8 @@ def datetime2utc(dt: datetime) -> int:
     # 별도의 timezone을 고려할 필요가 없다.
     return round(dt.timestamp() * 1000)
 
-# def utc2datetime(ts: int) -> datetime:
-#     return datetime.fromtimestamp(ts / 1000)
+def utc2datetime(ts: int) -> datetime:
+    return datetime.fromtimestamp(ts / 1000)
 
 # def datetime2str(dt: datetime, *, include_millis=False) -> str:
 #     if include_millis:
@@ -100,21 +100,21 @@ def sub_logger(logger:Optional[logging.Logger], suffix:str) -> Optional[logging.
 #     return callable(method) if method else False
 
 
-# T = TypeVar("T")
-# def get_or_else(value:T, else_value:Union[T,Callable[[],T]]) -> T:
-#     if value:
-#         return value
-#     else:
-#         return else_value() if callable(else_value) else else_value
+T = TypeVar("T")
+def get_or_else(value:T, else_value:Union[T,Callable[[],T]]) -> T:
+    if value:
+        return value
+    else:
+        return else_value() if callable(else_value) else else_value
 
-# def try_supply(supply:Callable[[],T], else_value:T|Callable[[],T]) -> T:
-#     try:
-#         return supply()
-#     except Exception:
-#         if isinstance(else_value, Callable):
-#             return else_value()
-#         else:
-#             return else_value
+def try_supply(supply:Callable[[],T], else_value:T|Callable[[],T]) -> T:
+    try:
+        return supply()
+    except Exception:
+        if isinstance(else_value, Callable):
+            return else_value()
+        else:
+            return else_value
 
 
 # def detect_outliers(values:list[T], weight:float=1.5, *,
@@ -153,3 +153,37 @@ def sub_logger(logger:Optional[logging.Logger], suffix:str) -> Optional[logging.
         
 #     def __iter__(self) -> Synchronizing:
 #         return TimestampSynchronizer.Synchronizing(iter(self.ts_list))
+
+
+_SLEEP_OVERHEAD = 20
+def synchronize_time(events:Iterator, utc_millis:Callable[[object],int],
+                     *,
+                     max_wait_ms:Optional[int]=None) -> Generator[object, None, None]:
+    import time
+    from . import iterables
+    
+    # 현재 시각과 events의 첫번째 event의 timestamp 값을 사용하여
+    # 상대적인 time offset을 계산한다.
+    if isinstance(events, Sequence):
+        start_ts = utc_millis(events[0])
+    elif isinstance(events, Iterator):
+        events = iterables.to_peekable(events)
+        start_ts = utc_millis(events.peek())
+    else:
+        raise ValueError(f"invalid events")
+    now = round(time.time() * 1000)
+    offset_ms = now - start_ts
+        
+    for ev in events:
+        # 다음번 event issue할 때까지의 대기 시간을 계산한다.
+        now = round(time.time() * 1000)
+        wait_ms = (utc_millis(ev) + offset_ms) - now
+        if max_wait_ms is not None:
+            overflow = wait_ms - max_wait_ms
+            if overflow > 0:
+                offset_ms -= overflow
+                wait_ms = max_wait_ms
+        if wait_ms > _SLEEP_OVERHEAD:
+            time.sleep(wait_ms / 1000)
+        
+        yield ev

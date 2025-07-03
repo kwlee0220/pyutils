@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Generic, TypeVar
+from typing import Generic, TypeVar, runtime_checkable, Protocol
 from dataclasses import dataclass
 
 
@@ -18,3 +18,13 @@ class KeyValue(Generic[K,T]):
     
     def __iter__(self):
         return iter((self.key, self.value))
+
+
+@runtime_checkable
+class Timestamped(Protocol):
+    __slots__ = ()
+    
+    @property
+    def ts(self) -> int: ...
+    
+TimestampedT = TypeVar("TimestampedT", bound=Timestamped)
